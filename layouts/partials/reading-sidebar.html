@@ -9,7 +9,7 @@
     </section>
     {{ $posts := where site.RegularPages "Section" "in" site.MainSections }}
     {{ $posts = (where $posts "Params.hiddenInHomeList" "ne" true).ByDate.Reverse }}
-    {{ with first 5 $posts }}
+    {{ with $posts }}
     <section class="side-block">
         <h2>最近文章</h2>
         <ul class="recent-post-list">
