@@ -45,7 +45,7 @@ function sameContent(a, b) {
 
 function updateSelection(url) {
     const current = resourceOf(url) || url;
-    for (const link of document.querySelectorAll(".site-rail a, .reference-index a, .site-masthead a")) {
+    for (const link of document.querySelectorAll(".site-rail a, .reference-index a")) {
         if (sameContent(new URL(link.href), current)) link.setAttribute("aria-current", "page");
         else link.removeAttribute("aria-current");
     }

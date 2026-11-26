@@ -4,7 +4,7 @@
 {{- $groups := newScratch -}}
 {{- range $posts -}}
   {{- $name := "随笔" -}}
-  {{- range first 1 (.GetTerms "categories") -}}{{- $name = .LinkTitle -}}{{- end -}}
+  {{- range first 1 (.Params.categories | default slice) -}}{{- $name = . -}}{{- end -}}
   {{- if not ($groups.Get $name) -}}{{- $names = $names | append $name -}}{{- end -}}
   {{- $groups.Add $name (slice .) -}}
 {{- end -}}

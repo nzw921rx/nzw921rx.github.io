@@ -19,14 +19,15 @@ html { background: var(--theme); overflow: hidden; }
 body, body.list {
   display: grid;
   grid-template-columns: 7.75rem minmax(0, 1fr) 200px;
-  grid-template-rows: auto minmax(0, 1fr);
-  grid-template-areas: "masthead masthead masthead" "rail main reading";
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: "rail main reading";
   align-items: start;
   gap: 0 clamp(10px, 1.15vw, 20px);
   width: min(1540px, calc(100% - 24px));
   height: 100vh;
   height: 100dvh;
   margin: 0 auto;
+  padding-top: max(8px, env(safe-area-inset-top));
   padding-bottom: max(4px, env(safe-area-inset-bottom));
   overflow: hidden;
   background: var(--theme);
@@ -124,25 +125,10 @@ body, body.list {
 .post-entry:hover h2, .post-entry:focus-within h2 { color: var(--accent-strong); }
 .post-entry .entry-content { font: 1rem/1.8 var(--serif); }
 .post-entry .entry-header h2 { font-size: 1.4rem; line-height: 1.45; }
-.post-tags a, .terms-tags a { border-radius: 2px; }
 .post-single .post-header { margin-top: 0; }
 .post-single .post-title { margin-top: 0; }
 
-.site-masthead {
-  grid-area: masthead;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: max(11px, env(safe-area-inset-top)) 4px 11px;
-  border-bottom: 1px solid var(--border);
-  color: var(--content);
-  background: var(--theme);
-}
-.masthead-brand { color: var(--primary); font: 600 clamp(1.5rem, 2.3vw, 1.75rem)/1.22 system-ui, sans-serif; letter-spacing: -.025em; }
-.masthead-links { display: flex; align-items: center; gap: 16px; font-size: .875rem; }
-.masthead-links a { color: var(--accent-strong); text-decoration: underline; text-underline-offset: .12em; }
-.drawer-control { display: none; }
+.reader-controls { display: none; }
 
 @media (min-width: 761px) {
   .site-rail { border-inline-end: 1px solid var(--border); }
@@ -162,36 +148,42 @@ body, body.list {
   body, body.list {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto;
-    grid-template-areas: "masthead" "main" "rail" "reading";
+    grid-template-areas: "main" "rail" "reading";
     width: 100%;
     height: auto;
     overflow: visible;
-    padding-top: 0;
   }
   .main { height: auto; padding: 12px 14px 20px; }
   .has-drawers body, .has-drawers body.list {
-    grid-template-rows: auto minmax(0, 1fr);
-    grid-template-areas: "masthead" "main";
+    --controls-height: 2.75rem;
+    grid-template-rows: minmax(0, 1fr) var(--controls-height);
+    grid-template-areas: "main" "controls";
     height: 100vh;
     height: 100dvh;
     overflow: hidden;
   }
   .has-drawers .main { height: 100%; }
-  .has-drawers .drawer-control {
-    display: inline-block;
-    padding: 5px 7px;
-    border: 1px solid var(--border);
-    border-radius: 2px;
-    color: var(--content);
-    background: var(--entry);
-    font-size: .8125rem;
+  .has-drawers .reader-controls {
+    grid-area: controls;
+    display: flex;
+    align-self: stretch;
+    justify-content: flex-end;
+    padding-inline: max(8px, env(safe-area-inset-left)) max(8px, env(safe-area-inset-right));
+  }
+  .reader-controls button {
+    min-width: 3rem;
+    color: var(--accent-strong);
+    font-size: .875rem;
+    text-decoration: underline;
+    text-underline-offset: .12em;
   }
   :is(.site-rail, .reference-index)[popover] {
     position: fixed;
-    inset: calc(var(--masthead-height, 80px) + 4px) max(8px, env(safe-area-inset-right)) auto auto;
+    --drawer-bottom: calc(var(--controls-height) + max(4px, env(safe-area-inset-bottom)));
+    inset: auto max(8px, env(safe-area-inset-right)) var(--drawer-bottom) auto;
     width: min(290px, calc(100vw - 16px));
     height: auto;
-    max-height: calc(100dvh - var(--masthead-height, 80px) - max(12px, env(safe-area-inset-bottom)));
+    max-height: calc(100dvh - var(--drawer-bottom) - max(8px, env(safe-area-inset-top)));
     margin: 0;
     padding: 14px 18px;
     border: 1px solid var(--border);
@@ -201,14 +193,4 @@ body, body.list {
   }
   :is(.site-rail, .reference-index)[popover]::backdrop { background: #0002; }
   .site-rail nav a { padding-block: 3px; }
-  .site-masthead { padding-inline: max(12px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-right)); }
-  .masthead-brand { font-size: 1.3rem; }
-  html:not(.has-drawers) .site-masthead { position: sticky; top: 0; z-index: 1; }
-  .masthead-links { gap: 9px; }
-}
-
-@media (max-width: 480px) {
-  .site-masthead { gap: 6px; padding-block: max(7px, env(safe-area-inset-top)) 7px; }
-  .masthead-brand { flex-shrink: 0; font-size: 1.25rem; }
-  .masthead-links { gap: 7px; min-height: 32px; }
 }

@@ -1,3 +1,7 @@
+<nav class="reader-controls" aria-label="阅读导航">
+    <button type="button" popovertarget="site-directory">目录</button>
+    <button type="button" popovertarget="reading-recommendations">推荐</button>
+</nav>
 <script>
     (() => {
         const rails = document.querySelectorAll("body > .site-rail, body > .reference-index");
@@ -13,12 +17,6 @@
             for (const rail of rails) rail.toggleAttribute("popover", mobile.matches);
             document.documentElement.classList.toggle("has-drawers", mobile.matches);
         }
-        const masthead = document.querySelector(".site-masthead");
-        const updateMastheadSize = () => {
-            document.documentElement.style.setProperty("--masthead-height", masthead.offsetHeight + "px");
-        };
-        new ResizeObserver(updateMastheadSize).observe(masthead);
-        updateMastheadSize();
         updateDrawers();
         mobile.addEventListener("change", updateDrawers);
         for (const rail of rails) {

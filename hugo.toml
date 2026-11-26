@@ -4,6 +4,7 @@ hasCJKLanguage = true
 locale = "zh-CN"
 title = "牛志伟"
 theme = "PaperMod"
+disableKinds = ["taxonomy", "term"]
 description = "牛志伟的开源笔记，记录 Spark、Flink、SeaTunnel、Iceberg、JVM、Scala 与性能工程的学习和实验。"
 
 [markup.highlight]
@@ -15,10 +16,7 @@ description = "牛志伟的开源笔记，记录 Spark、Flink、SeaTunnel、Ice
   ShowReadingTime = true
   ShowCodeCopyButtons = false
   ShowShareButtons = false
-  ShowPostNavLinks = true
   ShowBreadCrumbs = false
-  ShowToc = true
-  TocOpen = false
   defaultTheme = "light"
   env = "production"
   DateFormat = "2006 年 1 月 2 日"
