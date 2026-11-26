@@ -18,7 +18,7 @@
     {{ end }}
     <ul>
       {{ with site.GetPage "/about" }}<li><a href="{{ .RelPermalink }}">关于我</a></li>{{ end }}
-      {{ with site.Home.OutputFormats.Get "RSS" }}<li><a href="{{ .RelPermalink }}">RSS 订阅</a></li>{{ end }}
+      {{ with site.Home.OutputFormats.Get "RSS" }}<li><a href="{{ .RelPermalink }}" type="{{ .MediaType.Type }}">RSS 订阅</a></li>{{ end }}
     </ul>
   </nav>
 </aside>

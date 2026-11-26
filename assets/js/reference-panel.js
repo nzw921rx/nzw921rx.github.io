@@ -50,9 +50,9 @@ function address(value, base) {
     return url;
 }
 
-function addSource(panel, url, isFeed) {
+function addSource(panel, url) {
     const actions = element("div", "", "source-actions");
-    const link = element("a", isFeed ? "打开 RSS 源" : "在新标签页打开原文");
+    const link = element("a", "在新标签页打开原文");
     link.href = url.href;
     link.target = "_blank";
     link.rel = "external noopener noreferrer";
@@ -72,68 +72,15 @@ function addSource(panel, url, isFeed) {
     panel.append(actions, element("code", url.href, "source-url"));
 }
 
-async function appendFeed(panel, url, siteRoot, signal) {
-    let entries;
-    try {
-        const response = await fetch(url, { signal, mode: "same-origin" });
-        if (!response.ok) throw new Error("RSS request failed");
-        const xml = new DOMParser().parseFromString(await response.text(), "application/xml");
-        const channel = xml.querySelector("rss > channel");
-        if (!channel || xml.querySelector("parsererror")) throw new Error("Invalid RSS");
-        // Hugo writes absolute canonical URLs even when this build is previewed on another host.
-        const self = Array.from(channel.getElementsByTagNameNS("http://www.w3.org/2005/Atom", "link"))
-            .find(link => link.getAttribute("rel") === "self");
-        const feedAddress = address(self?.getAttribute("href") || url, url);
-        const suffix = url.pathname.slice(siteRoot.pathname.length);
-        const publishedRoot = feedAddress.pathname.endsWith("/" + suffix)
-            ? feedAddress.pathname.slice(0, -suffix.length) : siteRoot.pathname;
-        entries = [];
-        for (const item of channel.children) {
-            if (item.localName !== "item") continue;
-            const title = item.querySelector("title")?.textContent?.trim();
-            const href = item.querySelector("link")?.textContent?.trim();
-            if (!title || !href) continue;
-            let target;
-            try { target = address(href, url); } catch { continue; }
-            if (target.origin !== feedAddress.origin || !target.pathname.startsWith(publishedRoot)) continue;
-            const local = new URL(siteRoot);
-            local.pathname += target.pathname.slice(publishedRoot.length);
-            local.search = target.search;
-            local.hash = target.hash;
-            const entry = element("li");
-            const link = element("a", title);
-            link.href = local.href;
-            entry.append(link);
-            entries.push(entry);
-        }
-    } catch (error) {
-        if (signal?.aborted) throw error;
-        panel.append(element("p", "暂时无法读取订阅内容。可以打开上方 RSS 源，或将地址添加到阅读器。"));
-        return;
-    }
-    if (!entries.length) {
-        panel.append(element("p", "订阅源暂时没有本站文章。"));
-        return;
-    }
-    const list = element("ul", "", "feed-entries");
-    list.append(...entries);
-    panel.append(element("h2", "订阅更新"), list);
-}
-
-export async function createReferencePanel(value, label, signal) {
-    const siteRoot = new URL(document.getElementById("reader").dataset.siteRoot, location.origin);
+export function createReferencePanel(value, label) {
     const url = address(value, document.baseURI);
-    const isFeed = url.origin === siteRoot.origin && url.pathname.startsWith(siteRoot.pathname)
-        && url.pathname.endsWith("/index.xml");
     const resource = resources.get(url.origin + url.pathname);
     const panel = element("article", "", "reference-panel");
-    const title = isFeed ? "RSS 订阅" : resource?.title || label || url.hostname;
-    panel.append(element("p", isFeed ? "RSS" : url.hostname, "reference-origin"), element("h1", title));
+    const title = resource?.title || label || url.hostname;
+    panel.append(element("p", url.hostname, "reference-origin"), element("h1", title));
     if (resource?.description) panel.append(element("p", resource.description));
-    addSource(panel, url, isFeed);
-    if (isFeed) {
-        await appendFeed(panel, url, siteRoot, signal);
-    } else if (resource?.embed) {
+    addSource(panel, url);
+    if (resource?.embed) {
         const frame = element("iframe");
         frame.title = title;
         frame.setAttribute("sandbox", "");

@@ -2,6 +2,8 @@
 title: "关于我"
 date: 2026-07-07
 draft: false
+params:
+  hiddenInRss: true
 ---
 
 你好，我是牛志伟，热爱开源，是 ASF 旗下 Apache SeaTunnel 项目的 Committer。我关注 Spark、Flink、SeaTunnel、Iceberg 和性能工程。

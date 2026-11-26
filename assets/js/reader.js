@@ -23,6 +23,10 @@ function isPage(url) {
         !url.pathname.split("/").pop().includes("."));
 }
 
+function isSiteFeed(url) {
+    return inSite(url) && url.pathname.endsWith("/index.xml");
+}
+
 function resourceAddress(url) {
     const view = new URL(site);
     view.searchParams.set("resource", url.href);
@@ -111,6 +115,11 @@ function showLoadError(url) {
 }
 
 async function navigate(url, mode = "push", label = "") {
+    const resource = resourceOf(url);
+    if (resource && isSiteFeed(resource)) {
+        location.replace(resource.href);
+        return;
+    }
     activeRequest?.abort();
     const request = new AbortController();
     activeRequest = request;
@@ -122,10 +131,9 @@ async function navigate(url, mode = "push", label = "") {
     let committed = false;
     try {
         const reload = mode === "initial" || failed || !sameContent(url, displayed);
-        const resource = resourceOf(url);
         let page, panel;
         if (reload && resource) {
-            panel = await createReferencePanel(resource, label, request.signal);
+            panel = createReferencePanel(resource, label);
         } else if (reload) {
             const fetched = await fetchPage(url, request.signal);
             page = fetched.page;
@@ -166,7 +174,7 @@ document.addEventListener("click", event => {
     const link = event.target.closest?.("a[href]");
     if (!link || link.hasAttribute("download") || link.relList.contains("external")) return;
     const destination = new URL(link.href);
-    if (!["https:", "http:"].includes(destination.protocol)) return;
+    if (isSiteFeed(destination) || !["https:", "http:"].includes(destination.protocol)) return;
     event.preventDefault();
     const url = isPage(destination) ? destination : resourceAddress(destination);
     const label = link.textContent.trim() || link.getAttribute("aria-label") || "";
