@@ -1,9 +1,8 @@
-<aside class="site-rail" aria-label="站点索引">
+<aside id="site-directory" class="site-rail" aria-label="站点索引">
   <nav aria-label="站内导航">
     <p class="rail-title">站内导航</p>
     <ul>
       <li><a href="{{ site.Home.RelPermalink }}"{{ if .IsHome }} aria-current="page"{{ end }}>首页</a></li>
-      {{ with site.GetPage "/posts" }}<li><a href="{{ .RelPermalink }}">文章归档</a></li>{{ end }}
     </ul>
     {{ with site.Menus.reading }}
     <p class="rail-title rail-section">深度文章</p>

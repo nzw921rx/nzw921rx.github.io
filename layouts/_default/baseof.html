@@ -22,12 +22,10 @@
 <body id="top">
 {{- end }}
     {{ partialCached "header.html" . .Page -}}
-    <main class="main">
+    <main id="reader" class="main" tabindex="-1" data-site-root="{{ site.Home.RelPermalink }}">
         {{- block "main" . }}{{ end }}
     </main>
-    {{- if and .IsPage (in site.MainSections .Section) }}
-      {{ partialCached "reading-sidebar.html" site.Home }}
-    {{- end }}
+    {{ partialCached "reading-sidebar.html" site.Home -}}
     {{ partialCached "footer.html" . .Layout .Kind (.Param "hideFooter") (.Param "ShowCodeCopyButtons") -}}
 </body>
 
