@@ -17,7 +17,7 @@ mermaid: true
 
 ### 1.1 同一个 Java 程序，要重启几次 JVM？ {#11-2007java-性能不是一个常数}
 
-Georges、Buytaert 和 Eeckhout 调查了 50 篇 Java 性能论文，其中 16 篇没有交代实验方法，10 篇取最好值，只有 4 篇报告置信区间。取最好值特别容易偏爱波动大的实现。假设 A 通常用 100 ms，最快 98 ms；B 通常用 103 ms，偶尔达到 91 ms。仅凭最快的一次会选 B，但下一次普通运行很可能还是 A 更快。[论文全文（OOPSLA 2007）](https://dri.es/files/oopsla07-georges.pdf)
+Georges、Buytaert 和 Eeckhout 在《Statistically Rigorous Java Performance Evaluation》（OOPSLA，2007）中调查了 50 篇 Java 性能论文，其中 16 篇没有交代实验方法，10 篇取最好值，只有 4 篇报告置信区间。取最好值特别容易偏爱波动大的实现。假设 A 通常用 100 ms，最快 98 ms；B 通常用 103 ms，偶尔达到 91 ms。仅凭最快的一次会选 B，但下一次普通运行很可能还是 A 更快。
 
 实验单位由要测的生命周期决定：
 
@@ -34,7 +34,7 @@ Georges、Buytaert 和 Eeckhout 调查了 50 篇 Java 性能论文，其中 16 �
 
 ### 1.2 一小时预算，应该多开 JVM 还是多测几轮？ {#12-2013严谨不等于把每一层都机械地跑很多次}
 
-Kalibera 和 Jones 把重复分为构建（Build）、执行（Execution）和迭代（Iteration）三层。先固定硬件、JDK 和参数，交替或随机安排两个版本的执行顺序，再用一次定标实验估计各层的波动和成本。若总是先跑旧版本、再跑新版本，机器温度的变化也会被计入版本差异。[论文全文（ISMM 2013）](https://dl.acm.org/doi/10.1145/2491894.2464160)
+Kalibera 和 Jones 在《Rigorous Benchmarking in Reasonable Time》（ISMM，2013）中把重复分为构建（Build）、执行（Execution）和迭代（Iteration）三层。先固定硬件、JDK 和参数，交替或随机安排两个版本的执行顺序，再用一次定标实验估计各层的波动和成本。若总是先跑旧版本、再跑新版本，机器温度的变化也会被计入版本差异。
 
 在固定构建、每个 Fork 测量相同轮数的简化模型中：
 
@@ -58,7 +58,7 @@ Var(均值) ≈ σ²fork / F + σ²iter / (F × I)
 
 ### 1.3 加背压以后，延迟从哪里开始算？ {#13-2018流系统的最大输入速度不等于可持续吞吐}
 
-Karimov 等用独立机器上的 Driver 按设定速率产生事件，在生成时打时间戳，先放进外部内存队列，再交给被测系统（SUT）。这样，引擎忙到读不动时，负载仍会到达，等待会出现在队列里。若压测端总等上一个请求结束才发下一个，最拥堵时本应到达的请求及其等待就被漏掉了，这就是 *coordinated omission*。[论文全文（ICDE 2018）](https://arxiv.org/pdf/1802.08496)
+Karimov 等在《Benchmarking Distributed Stream Data Processing Systems》（ICDE，2018）中把 Driver 放在独立机器上。Driver 按设定速率产生事件，在生成时打时间戳，先放进外部内存队列，再交给被测系统（SUT）。这样，引擎忙到读不动时，负载仍会到达，等待会出现在队列里。若压测端总等上一个请求结束才发下一个，最拥堵时本应到达的请求及其等待就被漏掉了，这就是 *coordinated omission*。
 
 ```mermaid
 flowchart LR
@@ -82,7 +82,7 @@ flowchart LR
 
 ### 2.1 JMH 怎样为方法生成测量循环 {#21-jmh-不是用反射调用一次方法而是生成专用-harness}
 
-编译时，`BenchmarkProcessor` 处理注解，`BenchmarkGenerator` 生成专用的 Harness 和 `BenchmarkList`。运行时，宿主进程的 `Runner` 解析选中的方法与参数，启动 Fork，由 `ForkedMain` 执行预热和测量。以平均时间模式为例，生成代码的核心可以写成下面的伪代码：
+在 OpenJDK JMH 1.37 中，`BenchmarkProcessor` 在编译时处理注解，`BenchmarkGenerator` 生成专用的 Harness 和 `BenchmarkList`。运行时，宿主进程的 `Runner` 解析选中的方法与参数，启动 Fork，由 `ForkedMain` 执行预热和测量。以平均时间模式为例，生成代码的核心可以写成下面的伪代码：
 
 ```java
 long operations = 0;
@@ -94,7 +94,7 @@ do {
 long elapsed = System.nanoTime() - start;
 ```
 
-Harness 在循环外计时，再按操作数换算分数。真实实现还处理线程屏障、状态初始化、异常与返回值消费。一个方法若有返回值，直接返回计算结果，JMH 会消费它。文末列出了注解处理器、生成器、Runner 和结果类的源码入口。
+Harness 在循环外计时，再按操作数换算分数。真实实现还处理线程屏障、状态初始化、异常与返回值消费。一个方法若有返回值，直接返回计算结果，JMH 会消费它。
 
 ### 2.2 Fork、Warmup、Measurement 分别代表什么
 
@@ -362,12 +362,3 @@ public class ParserBenchmark {
 ## 三、我会怎样使用这组结果 {#三总结与感悟}
 
 如果 `102.0 → 98.5 ns/op` 能跨 JVM 复现，我会把它写成「特定参数和 JDK 下，单次调用的耗时下降」，附上原始样本和区间。要进一步写成「作业变快了」，还需要另一张图：相同的外部到达率下，积压是否消退，事件从生成到写出的等待是否缩短。两种证据支持的结论各有范围。
-
-### 参考资料
-
-1. Andy Georges, Dries Buytaert, Lieven Eeckhout, [Statistically Rigorous Java Performance Evaluation](https://dri.es/files/oopsla07-georges.pdf), OOPSLA 2007.
-2. Tomas Kalibera, Richard Jones, [Rigorous Benchmarking in Reasonable Time](https://dl.acm.org/doi/10.1145/2491894.2464160), ISMM 2013；[可访问全文](https://www.researchgate.net/publication/257193308_Rigorous_Benchmarking_in_Reasonable_Time).
-3. Jeyhun Karimov et al., [Benchmarking Distributed Stream Data Processing Systems](https://arxiv.org/pdf/1802.08496), ICDE 2018.
-4. OpenJDK, [Java Microbenchmark Harness](https://github.com/openjdk/jmh).
-5. OpenJDK JMH, [官方示例目录](https://github.com/openjdk/jmh/tree/master/jmh-samples/src/main/java/org/openjdk/jmh/samples).
-6. OpenJDK JMH 源码：[BenchmarkProcessor](https://github.com/openjdk/jmh/blob/master/jmh-generator-annprocess/src/main/java/org/openjdk/jmh/generators/BenchmarkProcessor.java)、[BenchmarkGenerator](https://github.com/openjdk/jmh/blob/master/jmh-core/src/main/java/org/openjdk/jmh/generators/core/BenchmarkGenerator.java)、[Runner](https://github.com/openjdk/jmh/blob/master/jmh-core/src/main/java/org/openjdk/jmh/runner/Runner.java)、[Result](https://github.com/openjdk/jmh/blob/master/jmh-core/src/main/java/org/openjdk/jmh/results/Result.java).

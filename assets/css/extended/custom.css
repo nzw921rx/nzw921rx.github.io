@@ -191,6 +191,7 @@ body, body.list {
     color: var(--content);
     box-shadow: 0 3px 14px #0003;
   }
+  .has-drawers :is(.site-rail, .reference-index)[popover]:not(:popover-open) { display: none; }
   :is(.site-rail, .reference-index)[popover]::backdrop { background: #0002; }
   .site-rail nav a { padding-block: 3px; }
 }

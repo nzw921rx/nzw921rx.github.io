@@ -29,7 +29,7 @@ mermaid: true
 
 ## 一次作业怎样计时
 
-`SeaTunnelPipelineBenchmark` 在 JMH Trial 初始化时启动单节点 Zeta Master 和 Worker。每次 invocation 通过 Client 提交一个完整的有界作业。内存 Source 按计划发数，可选的 Transform 计算哈希并写入可校验的结果，黑洞 Sink 记录接收时间、行数和 checksum。[Pipeline 基准源码](https://github.com/apache/seatunnel/blob/64198f4cf74eb933e3799eb9f4a1589deafa8f2c/seatunnel-benchmarks/src/main/java/org/apache/seatunnel/benchmark/SeaTunnelPipelineBenchmark.java)
+以 SeaTunnel 提交 `64198f4c` 的实现为例，`SeaTunnelPipelineBenchmark` 在 JMH Trial 初始化时启动单节点 Zeta Master 和 Worker。每次 invocation 通过 Client 提交一个完整的有界作业。内存 Source 按计划发数，可选的 Transform 计算哈希并写入可校验的结果，黑洞 Sink 记录接收时间、行数和 checksum。
 
 ```mermaid
 flowchart TD
@@ -49,17 +49,17 @@ flowchart TD
 | P50 / P95 / P99、Max（ms） | 每行延迟 = Sink 接收时间 − 该行的计划生成时间，再按作业统计百分位数和最大值。 |
 | Growth | `(后半段 P99 + 1) / (前半段 P99 + 1)`，两项均以毫秒计。高于 1 表示这次作业后半段尾延迟上升。 |
 
-Source 按记录序号和设定速率预先确定时间戳。即使下游变慢，下一行的计划时间依然不变。如果改从 Source 实际发出时开始计时，晚发的数据会漏算一段等待，这种遗漏在拥塞时尤其明显。[Source 生成时间](https://github.com/apache/seatunnel/blob/64198f4cf74eb933e3799eb9f4a1589deafa8f2c/seatunnel-benchmarks/src/main/java/org/apache/seatunnel/benchmark/connector/source/BenchmarkSourceReader.java) · [Sink 统计口径](https://github.com/apache/seatunnel/blob/64198f4cf74eb933e3799eb9f4a1589deafa8f2c/seatunnel-benchmarks/src/main/java/org/apache/seatunnel/benchmark/connector/sink/BenchmarkSinkWriter.java)
+`BenchmarkSourceReader` 按记录序号和设定速率计算每一行的计划生成时间，`BenchmarkSinkWriter` 收到记录时用这个时间计算延迟。例如一行原计划在 100 ms 时生成，受背压影响到 110 ms 才发出，在 112 ms 到达 Sink，这一行的延迟是 12 ms。如果从实际发出时计时，就只记到 2 ms，前面等的 10 ms 会消失。
 
 ### 75/75 怎样得到
 
 JMH 启动 3 个独立 JVM（Fork），每个先预热 3 个 iteration，再测量 5 个 iteration。一个 iteration 可以完成多个作业，因此每组 `75/75` 的分母是测量阶段实际完成的作业数。同一 Fork 内的作业共享 JIT 和堆状态，比较版本时要保留它们所属的 Fork。
 
-作业先校验 `processed_rows` 和 `expected_rows` 都等于计划行数。Source 直连 Sink 时 checksum 应为零，启用 Transform 后应为非零，用来发现少处理数据或跳过变换等错误。报告的 `Valid` 还要求作业符合 P99 和 Growth 阈值，并且没有延迟样本溢出直方图的统计范围。[作业执行与校验源码](https://github.com/apache/seatunnel/blob/64198f4cf74eb933e3799eb9f4a1589deafa8f2c/seatunnel-benchmarks/src/main/java/org/apache/seatunnel/benchmark/SeaTunnelEnvironmentContext.java)
+`SeaTunnelEnvironmentContext` 在作业完成后校验 `processed_rows` 和 `expected_rows` 都等于计划行数。Source 直连 Sink 时 checksum 应为零，启用 Transform 后应为非零，用来发现少处理数据或跳过变换等错误。报告的 `Valid` 还要求作业符合 P99 和 Growth 阈值，并且没有延迟样本溢出直方图的统计范围。
 
 ## 用 SeaTunnelRow 微基准追查热点
 
-整条 Pipeline 可以观察功能开关对作业的影响，`SeaTunnelRowBenchmark` 则单独计时创建、投影、复制、字段读取与大小计算。表中 Score 的单位改为 **ops/ms**，CV 为样本标准差与均值之比。[Row 基准源码](https://github.com/apache/seatunnel/blob/64198f4cf74eb933e3799eb9f4a1589deafa8f2c/seatunnel-benchmarks/src/main/java/org/apache/seatunnel/benchmark/SeaTunnelRowBenchmark.java)
+整条 Pipeline 可以观察功能开关对作业的影响，`SeaTunnelRowBenchmark` 则单独计时创建、投影、复制、字段读取与大小计算。表中 Score 的单位改为 **ops/ms**，CV 为样本标准差与均值之比。
 
 | 操作 | Score（ops/ms） | CV | 测量内容 |
 | --- | ---: | ---: | --- |

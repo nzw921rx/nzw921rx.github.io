@@ -1,0 +1,7 @@
+{{- $root := urls.Parse site.BaseURL -}}
+{{- $target := (urls.Parse .PageInner.Permalink).ResolveReference (urls.Parse .Destination) -}}
+{{- if and (eq $target.Scheme $root.Scheme) (eq $target.Host $root.Host) (strings.HasPrefix $target.Path $root.Path) -}}
+  <a href="{{ .Destination }}"{{ with .Title }} title="{{ . }}"{{ end }}>{{ .Text }}</a>
+{{- else -}}
+  {{ .Text }}
+{{- end -}}

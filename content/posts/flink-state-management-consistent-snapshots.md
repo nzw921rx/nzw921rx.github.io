@@ -11,7 +11,7 @@ mermaid: true
 
 Kafka 分区 P0 的下一条记录是给 Alice 的账户加 50。余额已经加过，读取位置却退回这条记录之前，故障恢复就会再加一次。反过来，位置推进了，余额还没保存，这 50 就丢了。单看 Offset 和余额，两边都可能保存成功。
 
-我用这个账户聚合任务读 [Flink 状态管理论文](https://www.vldb.org/pvldb/vol10/p1718-carbone.pdf)。前半篇沿着 2017 年论文的 Algorithm 1 走一遍双输入对齐，再看 Flink 2.3 怎样处理在途数据和大状态。最后把同一组故障放到事务 Sink 和 SeaTunnel Connector 上，看看引擎能保证什么，哪些结果还要由目标系统确认。
+Paris Carbone 等人在《State Management in Apache Flink: Consistent Stateful Distributed Stream Processing》（PVLDB，2017）里给出了对齐算法。我用这笔账推演论文的 Algorithm 1，再按 Flink 2.3 的实现讨论在途数据和大状态。最后让事务 Sink 在提交前后分别出一次故障，看恢复时引擎和目标库各自需要记住什么。
 
 ## 一、一致性问题：恢复点必须解释同一段历史
 
@@ -147,7 +147,7 @@ stateDiagram-v2
     UNKNOWN --> COMMITTED: query or retry confirms
 ```
 
-`flush()` 可以清空 Buffer、等待异步请求，不能替目标库作提交决定。Barrier 到达时要等在途请求完成或隔离旧请求，并保存 pending 句柄。恢复者须能按稳定 ID 查询事务结果，或安全地重试提交、清理；新执行还要隔离旧 Writer。完成通知可能遗漏，也可能由更高编号的完成点覆盖。确认 N 完成时，要能处理直到 N 为止仍应提交的事务，并在结果确认后再删除句柄。
+`flush()` 可以清空 Buffer、等待异步请求，不能替目标库作提交决定。Barrier 到达时要等在途请求完成或隔离旧请求，并保存 pending 句柄。恢复者须能按稳定 ID 查询事务结果，或安全地重试提交、清理；新执行还要隔离旧 Writer。Flink 的 `CheckpointListener` 允许完成通知被跳过。Writer 可能直接收到更高编号的完成通知。确认 N 完成时，要能处理直到 N 为止仍应提交的事务，并在结果确认后再删除句柄。
 
 ### 五个失败窗口怎样收敛 {#73-五个失败窗口怎样收敛}
 
@@ -225,16 +225,3 @@ assertThat(target.rows()).containsExactlyInAnyOrderElementsOf(expectedRows);
 ```
 
 这是协议测试的伪代码。恢复路径若选择幂等补交，再断言 T42 的提交调用至少两次；若按事务 ID 查询，则验证它确认了原提交。只比较最终行数会漏掉旧值覆盖新值，也看不出是否真的经过了模糊提交窗口。
-
-## 参考资料
-
-1. Paris Carbone et al., [State Management in Apache Flink: Consistent Stateful Distributed Stream Processing](https://www.vldb.org/pvldb/vol10/p1718-carbone.pdf), PVLDB 10(12), 2017.
-2. Apache Flink 2.3, [Checkpointing](https://nightlies.apache.org/flink/flink-docs-release-2.3/docs/dev/datastream/fault-tolerance/checkpointing/).
-3. Apache Flink 2.3, [Checkpointing under backpressure](https://nightlies.apache.org/flink/flink-docs-release-2.3/docs/ops/state/checkpointing_under_backpressure/).
-4. Apache Flink 2.3, [State Backends](https://nightlies.apache.org/flink/flink-docs-release-2.3/docs/ops/state/state_backends/).
-5. Apache Flink 2.3, [Checkpoints vs. Savepoints](https://nightlies.apache.org/flink/flink-docs-release-2.3/docs/ops/state/checkpoints_vs_savepoints/).
-6. Apache Flink 2.3, [Tuning Checkpoints and Large State](https://nightlies.apache.org/flink/flink-docs-release-2.3/docs/ops/state/large_state_tuning/).
-7. Apache Flink 2.3, [Fault Tolerance Guarantees of Data Sources and Sinks](https://nightlies.apache.org/flink/flink-docs-release-2.3/docs/connectors/datastream/guarantees/).
-8. Apache Flink 2.3, [Deprecated API List](https://nightlies.apache.org/flink/flink-docs-release-2.3/api/java/deprecated-list.html).
-9. Apache Flink 2.3, [CheckpointListener API](https://nightlies.apache.org/flink/flink-docs-release-2.3/api/java/org/apache/flink/api/common/state/CheckpointListener.html).
-10. Apache Flink 2.3, [SupportsCommitter API](https://nightlies.apache.org/flink/flink-docs-release-2.3/api/java/org/apache/flink/api/connector/sink2/SupportsCommitter.html).
