@@ -25,8 +25,8 @@ description = "牛志伟的开源笔记，记录 Spark、Flink、SeaTunnel、Ice
   ShowFullTextinRSS = true
 
 [params.assets]
-  theme_color = "#f1f8f2"
-  msapplication_TileColor = "#f1f8f2"
+  theme_color = "#e6eff9"
+  msapplication_TileColor = "#e6eff9"
 
 [[menus.reading]]
   name = "FlushSignal"
