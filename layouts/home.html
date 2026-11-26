@@ -1,28 +1,5 @@
 {{ define "main" }}
-{{- $posts := where site.RegularPages "Section" "in" site.MainSections -}}
-{{- $posts = (where $posts "Params.hiddenInHomeList" "ne" true).ByDate.Reverse -}}
-{{/* Keep the original /page/1/ alias while listing each topic on one page. */}}
-{{- $pager := .Paginate $posts (add 1 (len $posts)) -}}
-{{- $topics := partialCached "article-topics.html" site.Home -}}
-
 <div class="home-main">
     {{ partial "home_info.html" . }}
-    <section id="articles" class="article-section" aria-label="技术文章">
-        <div id="topics">
-            {{ range $topics }}
-            <section class="post-group" id="{{ .id }}">
-                <h2>{{ .name }}</h2>
-                <ul class="topic-posts">
-                    {{ range .posts }}
-                    <li>
-                        <a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>
-                        <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006-01-02" }}</time>
-                    </li>
-                    {{ end }}
-                </ul>
-            </section>
-            {{ end }}
-        </div>
-    </section>
 </div>
 {{ end }}
