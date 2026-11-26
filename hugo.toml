@@ -2,16 +2,16 @@ baseURL = "https://nzw921rx.github.io/nzw921rx-blog/"
 defaultContentLanguage = "zh"
 hasCJKLanguage = true
 locale = "zh-CN"
-title = "牛志伟 · Engineering Notes"
+title = "牛志伟"
 theme = "PaperMod"
-description = "聚焦 Java、Go、大数据与 AI 工程实践的个人技术博客"
+description = "牛志伟的开源笔记，记录 Spark、Flink、SeaTunnel、Iceberg、JVM、Scala 与性能工程的学习和实验。"
 
 [markup.highlight]
   noClasses = false
 
 [params]
-  author = "Niu Zhiwei"
-  description = "聚焦 Java、Go、大数据与 AI 工程实践的个人技术博客"
+  author = "牛志伟"
+  description = "牛志伟的开源笔记，记录 Spark、Flink、SeaTunnel、Iceberg、JVM、Scala 与性能工程的学习和实验。"
   ShowReadingTime = true
   ShowCodeCopyButtons = false
   ShowShareButtons = false
@@ -19,34 +19,23 @@ description = "聚焦 Java、Go、大数据与 AI 工程实践的个人技术博
   ShowBreadCrumbs = false
   ShowToc = true
   TocOpen = false
-  defaultTheme = "dark"
+  defaultTheme = "light"
   env = "production"
   DateFormat = "2006 年 1 月 2 日"
   mainSections = ["posts"]
-  disableThemeToggle = false
+  disableThemeToggle = true
   ShowFullTextinRSS = true
 
-[[menus.reading]]
-  name = "SeaTunnel 基准"
-  pageRef = "/posts/seatunnel-benchmark-design"
-  weight = 10
-
-[[menus.reading]]
-  name = "JMH 基准方法"
-  pageRef = "/posts/rigorous-java-stream-benchmarking"
-  weight = 20
-
-[[menus.reading]]
-  name = "Flink 快照机制"
-  pageRef = "/posts/flink-state-management-consistent-snapshots"
-  weight = 30
+[params.assets]
+  theme_color = "#ffffff"
+  msapplication_TileColor = "#ffffff"
 
 [[menus.reading]]
   name = "FlushSignal"
   pageRef = "/posts/seatunnel-engine-flush-signal"
-  weight = 40
+  weight = 10
 
 [[menus.reading]]
-  name = "Zeta 作业提交"
-  pageRef = "/posts/seatunnel-submit-job-flow"
-  weight = 50
+  name = "SeaTunnel 基准测试"
+  pageRef = "/posts/seatunnel-benchmark-design"
+  weight = 20

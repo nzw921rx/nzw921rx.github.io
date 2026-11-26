@@ -61,7 +61,7 @@
   min-width: 0;
   padding: 12px 14px 16px;
   color: var(--content);
-  background: var(--rail-bg);
+  background: var(--theme);
   font: .9375rem/1.45 var(--serif);
 }
 .reference-index .side-block + .side-block {

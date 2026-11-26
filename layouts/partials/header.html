@@ -1,3 +1,12 @@
+<header class="site-masthead">
+    <strong class="masthead-brand">牛志伟</strong>
+    <nav class="masthead-links" aria-label="站点快捷导航">
+        {{ with site.GetPage "/posts" }}<a href="{{ .RelPermalink }}">全部文章</a>{{ end }}
+        <a href="https://github.com/nzw921rx">GitHub</a>
+        <button class="drawer-control" type="button" popovertarget="site-directory">目录</button>
+        <button class="drawer-control" type="button" popovertarget="reading-recommendations">推荐</button>
+    </nav>
+</header>
 <aside id="site-directory" class="site-rail" aria-label="站点索引">
   <nav aria-label="站内导航">
     <p class="rail-title">站内导航</p>
@@ -22,11 +31,4 @@
       {{ with site.Home.OutputFormats.Get "RSS" }}<li><a href="{{ .RelPermalink }}">RSS 订阅</a></li>{{ end }}
     </ul>
   </nav>
-  {{ if not site.Params.disableThemeToggle }}
-  <button type="button" id="theme-toggle" class="notes-toggle" title="切换深浅色（Alt + T）" accesskey="t">
-    <span class="theme-disc" aria-hidden="true"></span>
-    <span class="dark-action">切换到深色模式</span>
-    <span class="light-action">切换到浅色模式</span>
-  </button>
-  {{ end }}
 </aside>

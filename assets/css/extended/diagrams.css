@@ -1,0 +1,6 @@
+/* Also neutralize colors explicitly supplied in a Mermaid block (e.g., classDef or rect). */
+.post-content [data-reader-diagram] > svg {
+    display: block;
+    background-color: #fff;
+    filter: grayscale(1);
+}

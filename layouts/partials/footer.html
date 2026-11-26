@@ -1,15 +1,3 @@
-<footer class="site-footer" aria-label="站点页脚">
-    <div class="footer-brand">
-        <strong>牛志伟 · Engineering Notes</strong>
-        <span>记录源码、实验与工程推理。</span>
-    </div>
-    <nav class="footer-links" aria-label="页脚导航">
-        {{ with site.GetPage "/posts" }}<a href="{{ .RelPermalink }}">全部文章</a>{{ end }}
-        <a href="https://github.com/nzw921rx">GitHub</a>
-        <button class="drawer-control" type="button" popovertarget="site-directory">目录</button>
-        <button class="drawer-control" type="button" popovertarget="reading-recommendations">推荐</button>
-    </nav>
-</footer>
 <script>
     (() => {
         const rails = document.querySelectorAll("body > .site-rail, body > .reference-index");
@@ -25,6 +13,12 @@
             for (const rail of rails) rail.toggleAttribute("popover", mobile.matches);
             document.documentElement.classList.toggle("has-drawers", mobile.matches);
         }
+        const masthead = document.querySelector(".site-masthead");
+        const updateMastheadSize = () => {
+            document.documentElement.style.setProperty("--masthead-height", masthead.offsetHeight + "px");
+        };
+        new ResizeObserver(updateMastheadSize).observe(masthead);
+        updateMastheadSize();
         updateDrawers();
         mobile.addEventListener("change", updateDrawers);
         for (const rail of rails) {

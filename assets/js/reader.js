@@ -45,7 +45,7 @@ function sameContent(a, b) {
 
 function updateSelection(url) {
     const current = resourceOf(url) || url;
-    for (const link of document.querySelectorAll(".site-rail a, .reference-index a, .site-footer a")) {
+    for (const link of document.querySelectorAll(".site-rail a, .reference-index a, .site-masthead a")) {
         if (sameContent(new URL(link.href), current)) link.setAttribute("aria-current", "page");
         else link.removeAttribute("aria-current");
     }
@@ -142,7 +142,7 @@ async function navigate(url, mode = "push", label = "") {
         } else if (panel) {
             reader.replaceChildren(panel);
             const heading = reader.querySelector("h1")?.textContent || label || resource.hostname;
-            document.title = heading + " | 牛志伟 · Engineering Notes";
+            document.title = heading + " | 牛志伟";
             document.head.querySelectorAll(metadata).forEach(el => el.remove());
             initArticle(reader);
         }
@@ -171,13 +171,6 @@ document.addEventListener("click", event => {
     const url = isPage(destination) ? destination : resourceAddress(destination);
     const label = link.textContent.trim() || link.getAttribute("aria-label") || "";
     navigate(url, url.href === displayed.href ? "replace" : "push", label);
-});
-
-document.getElementById("theme-toggle")?.addEventListener("click", () => {
-    const root = document.documentElement;
-    const theme = root.dataset.theme === "dark" ? "light" : "dark";
-    root.dataset.theme = theme;
-    try { localStorage.setItem("pref-theme", theme); } catch { /* Theme still applies for this visit. */ }
 });
 
 history.scrollRestoration = "manual";

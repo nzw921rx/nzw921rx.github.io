@@ -5,12 +5,6 @@
   --number: #824415;
   --comment: #50596a;
 }
-[data-theme="dark"] .chroma {
-  --keyword: #c2b5ed;
-  --string: #a9daba;
-  --number: #e6b88c;
-  --comment: #a3afbf;
-}
 .chroma .line { display: flex; }
 .chroma :is(.k, .kc, .kd, .kn, .kp, .kr, .kt, .nt, .ow) { color: var(--keyword); }
 .chroma :is(.s, .sa, .sb, .sc, .sd, .s1, .s2, .se, .sh, .si, .sr, .ss, .sx, .dl) { color: var(--string); }

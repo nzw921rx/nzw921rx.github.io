@@ -62,10 +62,35 @@ function loadMermaid() {
     return mermaidModule;
 }
 
+// Mermaid derives flowchart, state and sequence styles from the base palette.
+const diagramInk = "#202020";
+const diagramOutline = "#565656";
+const diagramTheme = {
+    background: "#ffffff",
+    primaryColor: "#f5f5f5",
+    secondaryColor: "#dedede",
+    tertiaryColor: "#ebebeb",
+    primaryTextColor: diagramInk,
+    secondaryTextColor: diagramInk,
+    tertiaryTextColor: diagramInk,
+    primaryBorderColor: diagramOutline,
+    secondaryBorderColor: diagramOutline,
+    tertiaryBorderColor: diagramOutline,
+    lineColor: "#404040",
+    arrowheadColor: "#404040",
+    edgeLabelBackground: "#ffffff",
+    labelBackgroundColor: "#ffffff",
+    noteBkgColor: "#e5e5e5",
+    noteBorderColor: diagramOutline,
+    noteTextColor: diagramInk,
+    activationBkgColor: "#cccccc",
+    activationBorderColor: diagramOutline,
+    stateLabelColor: diagramInk
+};
+
 async function renderDiagrams(currentVersion) {
     const codes = Array.from(activeMain.querySelectorAll(mermaidCode));
     if (!codes.length) return;
-    const theme = document.documentElement.dataset.theme === "dark" ? "dark" : "default";
     let mermaid;
     try {
         mermaid = await loadMermaid();
@@ -73,16 +98,20 @@ async function renderDiagrams(currentVersion) {
         return; // The original code blocks are readable without the CDN.
     }
     if (currentVersion !== version) return;
-    mermaid.initialize({ startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true, theme });
+    mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: "strict",
+        suppressErrorRendering: true,
+        theme: "base",
+        themeVariables: diagramTheme
+    });
 
     for (const code of codes) {
         if (currentVersion !== version || !code.isConnected) return;
         const pre = code.parentElement;
-        const existing = pre.nextElementSibling;
-        const diagram = existing?.hasAttribute("data-reader-diagram") ? existing : null;
-        if (diagram?.dataset.readerDiagram === theme) continue;
+        if (pre.nextElementSibling?.hasAttribute("data-reader-diagram")) continue;
 
-        // Mermaid measures a connected container. Keep the displayed diagram in place while it renders.
+        // Mermaid measures a connected container. Keep the source visible until the SVG is ready.
         const stage = document.createElement("div");
         stage.setAttribute("aria-hidden", "true");
         Object.assign(stage.style, {
@@ -95,15 +124,14 @@ async function renderDiagrams(currentVersion) {
         try {
             const { svg } = await mermaid.render("notes-diagram-" + (++diagramId), code.textContent, stage);
             if (currentVersion !== version || !code.isConnected) return;
-            const output = diagram || document.createElement("div");
+            const output = document.createElement("div");
             output.className = "mermaid";
-            output.dataset.readerDiagram = theme;
+            output.setAttribute("data-reader-diagram", "");
             output.innerHTML = svg;
-            if (!diagram) pre.after(output);
+            pre.after(output);
             pre.hidden = true;
         } catch {
             if (currentVersion !== version || !code.isConnected) return;
-            diagram?.remove();
             pre.hidden = false;
         } finally {
             stage.remove();
@@ -125,11 +153,6 @@ async function updateDiagrams() {
         rendering = false;
     }
 }
-
-new MutationObserver(updateDiagrams).observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ["data-theme"]
-});
 
 export function initArticle(main) {
     activeMain = main;

@@ -4,250 +4,82 @@ date: 2026-08-10T00:00:00+08:00
 draft: false
 tags: ["SeaTunnel", "Zeta", "Benchmark", "JMH", "性能工程"]
 categories: ["SeaTunnel"]
-author: "Niu Zhiwei"
-summary: "从一组真实结果出发，解释 SeaTunnelRow 微基准和单节点 Zeta Pipeline 基准的测量边界、指标含义、实现方法与理论依据。"
+author: "牛志伟"
+summary: "单节点 Zeta 按每秒 60 万行供数，五条 Pipeline 的 Sink 实测约 58.8 万至 59.1 万行/秒。本文拆解作业计时、尾延迟与样本校验，并用 SeaTunnelRow 微基准定位热点。"
 mermaid: true
 ---
 
-![SeaTunnel JMH 基准测试汇总](jmh-summary.webp)
+同一轮 SeaTunnel 测试，JMH 报告约 **45.4 万至 45.8 万 ops/s**，Sink 报告约 **58.8 万至 59.1 万行/秒**。JMH 把提交到完成的作业耗时折算为吞吐，Sink 只在接收数据期间计时。测试中设定的 **60 万行/秒** 则是 Source 计划生成数据的速率。
 
-*图 1：同一轮运行中的 JMH 汇总，包括完整 Pipeline 和 SeaTunnelRow 热点操作。*
+## 单节点 Pipeline 的结果
 
-![SeaTunnel Pipeline 吞吐与延迟结果](pipeline-results.webp)
+测试在 GitHub 托管的 Ubuntu 运行器上进行，使用 Java 8、4 GiB 堆、4 个 JVM 可见处理器，Pipeline 并行度为 4。每次作业处理 1,000,000 行，每行 Payload 为 256 个字符。有 Transform 的场景每行执行 64 次哈希运算。五个场景共用这组参数，分别切换 Transform、实时忙碌度观测和 StainTrace。
 
-*图 2：五条 Pipeline 在相同负载下的吞吐、延迟、增长比例与有效样本。*
+| 场景 | Sink 吞吐（行/秒） | P50 / P95 / P99（ms） | Max（ms） | Growth | Valid |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Source → Sink | 587,889.48 | 50 / 96 / 100 | 103 | 1.000 | 75/75 |
+| 加 Transform | 590,318.77 | 51 / 96 / 100 | 103 | 1.000 | 75/75 |
+| Transform + 忙碌度观测 | 590,667.45 | 52 / 97 / 101 | 105 | 0.990 | 75/75 |
+| Transform + StainTrace | 589,970.50 | 51 / 96 / 100 | 103 | 1.000 | 75/75 |
+| Transform + 忙碌度观测 + StainTrace | 589,622.64 | 52 / 97 / 101 | 105 | 0.990 | 75/75 |
 
-## 一、先读懂这组结果
+表中吞吐、延迟与 Growth 取各场景测量作业的中位数。例如基础场景的 100 ms 是各次作业 P99 的中位数。五组作业的前后半段 P99 接近，每组 75 个样本都通过校验。在这轮有界作业、固定负载下，未观察到尾延迟持续增长。要估计容量上限，需要逐步提高计划速率并延长观测时间。生产环境还要计入真实连接器 I/O、多节点网络和 Checkpoint 的成本。
 
-这轮测试使用 Java 8、4 GiB 堆、4 个 JVM 可见处理器和 4 个 Pipeline 并行度；每次作业处理 1,000,000 行，计划输入速率为 600,000 行/秒，Payload 为 256 个字符。
+![本轮 Pipeline 报告，含负载参数、Sink 吞吐、尾延迟和有效样本数](pipeline-results.webp)
 
-结果可以压缩成三点：
+## 一次作业怎样计时
 
-1. 五个场景的 Sink 吞吐都在 58.8 万到 59.1 万行/秒，P99 为 100 到 101 ms，Growth 为 0.99 到 1.00，75/75 个样本全部有效，说明当前负载下没有持续积累 backlog；
-2. Pipeline JMH Score 的最大差距约为 0.87%，而本轮 Error 为 0.88% 到 1.38%，因此只能说没有观察到可区分的功能开销，不能说某个场景更快或“零开销”；
-3. 60 万行/秒是本轮固定负载，不是容量上限。真正的容量评估还需要提高输入速率并持续观察吞吐、P99 和延迟增长。
+`SeaTunnelPipelineBenchmark` 在 JMH Trial 初始化时启动单节点 Zeta Master 和 Worker。每次 invocation 通过 Client 提交一个完整的有界作业。内存 Source 按计划发数，可选的 Transform 计算哈希并写入可校验的结果，黑洞 Sink 记录接收时间、行数和 checksum。[Pipeline 基准源码](https://github.com/apache/seatunnel/blob/64198f4cf74eb933e3799eb9f4a1589deafa8f2c/seatunnel-benchmarks/src/main/java/org/apache/seatunnel/benchmark/SeaTunnelPipelineBenchmark.java)
 
-因此，这组数字首先证明的是基准链路完整、当前负载可持续，并且能够对不同引擎能力进行同口径比较，而不是给 Zeta 下一个脱离环境的绝对性能结论。
+```mermaid
+flowchart TD
+    J["JMH 开始计时"] --> C["Client 提交作业"]
+    C --> S["Source 按计划速率生成记录"]
+    S -->|"直接写入"| K["Sink 接收并记录时间、行数与校验和"]
+    S -->|"启用 Transform"| T["计算哈希"]
+    T --> K
+    K --> V["作业完成并通过校验"]
+    V --> E["JMH 结束计时"]
+```
 
-## 二、为什么要同时做微基准和完整 Pipeline
+| 指标 | 计算与计时边界 |
+| --- | --- |
+| JMH Score（ops/s） | 每次 invocation 计为 1,000,000 个逻辑操作。耗时包含作业配置生成、提交、调度、执行、等待完成和结果校验。集群启动在计时前完成。 |
+| Pipeline Throughput（行/秒） | 处理行数除以 Sink 收到首行与末行之间的秒数。作业提交和收尾不在这个窗口内。 |
+| P50 / P95 / P99、Max（ms） | 每行延迟 = Sink 接收时间 − 该行的计划生成时间，再按作业统计百分位数和最大值。 |
+| Growth | `(后半段 P99 + 1) / (前半段 P99 + 1)`，两项均以毫秒计。高于 1 表示这次作业后半段尾延迟上升。 |
 
-SeaTunnel 的基准测试分为两层，两者回答的问题不同。
+Source 按记录序号和设定速率预先确定时间戳。即使下游变慢，下一行的计划时间依然不变。如果改从 Source 实际发出时开始计时，晚发的数据会漏算一段等待，这种遗漏在拥塞时尤其明显。[Source 生成时间](https://github.com/apache/seatunnel/blob/64198f4cf74eb933e3799eb9f4a1589deafa8f2c/seatunnel-benchmarks/src/main/java/org/apache/seatunnel/benchmark/connector/source/BenchmarkSourceReader.java) · [Sink 统计口径](https://github.com/apache/seatunnel/blob/64198f4cf74eb933e3799eb9f4a1589deafa8f2c/seatunnel-benchmarks/src/main/java/org/apache/seatunnel/benchmark/connector/sink/BenchmarkSinkWriter.java)
 
-### SeaTunnelRow 微基准：定位热点
+### 75/75 怎样得到
 
-`SeaTunnelRowBenchmark` 关注 Source、Transform 和 Sink 热路径中的基础操作，包括 Row 创建、字段读取、复制、投影、Options 和大小计算。
+JMH 启动 3 个独立 JVM（Fork），每个先预热 3 个 iteration，再测量 5 个 iteration。一个 iteration 可以完成多个作业，因此每组 `75/75` 的分母是测量阶段实际完成的作业数。同一 Fork 内的作业共享 JIT 和堆状态，比较版本时要保留它们所属的 Fork。
 
-| 操作 | Score（ops/ms） | CV | 主要含义 |
+作业先校验 `processed_rows` 和 `expected_rows` 都等于计划行数。Source 直连 Sink 时 checksum 应为零，启用 Transform 后应为非零，用来发现少处理数据或跳过变换等错误。报告的 `Valid` 还要求作业符合 P99 和 Growth 阈值，并且没有延迟样本溢出直方图的统计范围。[作业执行与校验源码](https://github.com/apache/seatunnel/blob/64198f4cf74eb933e3799eb9f4a1589deafa8f2c/seatunnel-benchmarks/src/main/java/org/apache/seatunnel/benchmark/SeaTunnelEnvironmentContext.java)
+
+## 用 SeaTunnelRow 微基准追查热点
+
+整条 Pipeline 可以观察功能开关对作业的影响，`SeaTunnelRowBenchmark` 则单独计时创建、投影、复制、字段读取与大小计算。表中 Score 的单位改为 **ops/ms**，CV 为样本标准差与均值之比。[Row 基准源码](https://github.com/apache/seatunnel/blob/64198f4cf74eb933e3799eb9f4a1589deafa8f2c/seatunnel-benchmarks/src/main/java/org/apache/seatunnel/benchmark/SeaTunnelRowBenchmark.java)
+
+| 操作 | Score（ops/ms） | CV | 测量内容 |
 | --- | ---: | ---: | --- |
 | `copyPlainRow` | 22,328.74 | 1.01% | 完整复制普通 Row |
-| `copyProjectedPlainRow` | 59,769.89 | 1.57% | 只复制 8 个字段中的 4 个投影字段 |
-| `copyProjectedRowWithOptions` | 49,282.32 | 0.59% | 投影复制，同时处理 Options |
+| `copyProjectedPlainRow` | 59,769.89 | 1.57% | 从 8 个字段投影复制 4 个 |
+| `copyProjectedRowWithOptions` | 49,282.32 | 0.59% | 投影复制带 Options 的 Row |
 | `copyRowWithOptions` | 20,789.92 | 0.22% | 完整复制带 Options 的 Row |
 | `copyRowWithTracePayload` | 20,499.68 | 0.27% | 完整复制带 Trace Payload 的 Row |
 | `copyThenMutateCopiedOptions` | 7,305.63 | 1.01% | 复制后修改 Options |
-| `createRowAndGetBytesSize` | 5,837.52 | 0.68% | 创建 Row 并计算大小 |
+| `createRowAndGetBytesSize` | 5,837.52 | 0.68% | 创建 Row 并首次计算大小 |
 | `createRowWithSetField` | 7,668.90 | 0.59% | 逐字段构建 Row |
-| `getBytesSizeCached` | 254,677.57 | 1.13% | 读取已经缓存的大小 |
+| `getBytesSizeCached` | 254,677.57 | 1.13% | 读取已缓存的大小 |
 | `readFields` | 28,347.47 | 0.47% | 读取并消费全部字段 |
 
-`ops/ms` 表示每毫秒完成多少次操作，越大越好。例如 `copyPlainRow` 的 22,328.74 ops/ms 约等于每秒 2,233 万次操作。
+以普通 Row 的完整复制为基线，带 Options 的复制吞吐低约 **6.9%**，带 Trace Payload 的低约 **8.2%**。回到完整 Pipeline，五种场景的 JMH Score 最大相差约 **0.87%**，各自的 Error（置信区间半宽占 Score 的百分比）为 **0.88% 至 1.38%**。这轮结果足以定位一个值得单测的复制热点，尚不足以给五种作业的性能排序。
 
-这些数字主要用于同一方法跨版本比较，或者比较语义相近的操作。不能因为 `getBytesSizeCached` 比 `createRowAndGetBytesSize` 高很多，就直接得出某段完整业务链路快了相同比例：前者只是读取缓存，后者同时包含对象创建和首次大小计算，测量对象并不相同。
+![Java 8 JMH 报告，列出五种 Pipeline 与十项 Row 操作的 Score、Error、CV 和 Unit](jmh-summary.webp)
 
-在语义接近的复制场景中可以看到，带 Options 的完整复制比普通复制低约 6.9%，加入 Trace Payload 后比普通复制低约 8.2%。这类差异能够提示优化方向，但最终是否影响真实任务，仍要回到完整 Pipeline 验证。
+## 如何用这组数据比较版本
 
-### Zeta Pipeline 基准：验证整体效果
+固定工作负载和运行环境，保留原始 JMH JSON、逐作业 Pipeline JSON，以及 commit、JDK、JVM 参数和运行器信息。比较 baseline 与 candidate 时先检查行数和校验结果，再看各 Fork 的吞吐、P99 和 Growth。托管运行器会更换宿主机，制定回归阈值需要固定机器上的历史分布。
 
-完整 Pipeline 启动真实的单节点 Zeta Master 和 Worker，并通过正常的 Client、配置解析、任务提交和调度链路执行有界作业。
-
-```mermaid
-flowchart LR
-    JMH["JMH Trial"] --> Cluster["单节点 Zeta"]
-    Cluster --> Client["Client 提交作业"]
-    Client --> Source["定速 Source"]
-    Source --> Transform["可选 Transform"]
-    Transform --> Sink["黑洞 Sink"]
-    Sink --> Result["吞吐、延迟、校验结果"]
-```
-
-集群在 `Trial` 的 Setup 阶段启动，不进入计时区间。每次 Benchmark invocation 都会提交一个包含 1,000,000 行数据的完整作业，作业配置生成、提交、调度、Source、可选 Transform、Sink 和完成等待都在测量范围内。
-
-这种设计比只调用一个内部方法更接近真实引擎，又通过内存 Source 和黑洞 Sink 去掉了外部系统波动，适合回答“引擎核心链路是否发生变化”。
-
-## 三、设计背后的理论依据
-
-基准测试的可信度包含两个层面：一是结果是否具有统计上的可靠性，二是指标是否真正测量了我们关心的性能问题。前者要求正确处理 JVM 波动、独立样本和实验误差，后者要求明确吞吐与延迟的测量边界。
-
-这套设计主要参考了三项性能评估研究：
-
-| 研究 | 核心问题 | 主要结论 |
-| --- | --- | --- |
-| *Statistically Rigorous Java Performance Evaluation*，OOPSLA 2007 | Java 程序每次运行都可能不同，怎样得到可信结论？ | 区分启动与稳态，以独立 JVM 运行作为重要实验单位，同时报告估计值和不确定性 |
-| *Rigorous Benchmarking in Reasonable Time*，ISMM 2013 | Build、JVM 和 Iteration 都存在波动，有限的实验时间应该怎样分配？ | 识别不同层级的方差，通过定标实验把重复预算用于主要的不确定性来源 |
-| *Benchmarking Distributed Stream Data Processing Systems*，ICDE 2018 | 流处理系统中的吞吐和延迟应该从哪里开始测量？ | 使用开环负载和事件生成时间，结合 backlog 与尾延迟判断可持续吞吐 |
-
-三项研究解决的不是三个孤立场景，而是基准测试中的三个连续问题：样本是否可信、实验预算是否有效，以及测量对象是否正确。
-
-### JVM 性能评估：从重复运行到可信样本
-
-Java 程序的性能不是一个固定常数。即使代码、参数和机器完全相同，JIT 编译时机、GC、线程调度、堆布局和操作系统扰动仍会让每次运行产生差异。
-
-因此，只取多次运行中的最好值并不能代表程序的典型性能。`best of N` 实际回答的是“这 N 次运行中最幸运的一次有多快”。随着 N 增大，抽到极端好运样本的概率也会增加，最终结果会系统性地偏向波动更大的实现。
-
-论文进一步区分了启动性能和稳定态性能。启动性能关注 JVM 启动、类加载、初始化和任务执行的总成本；稳定态性能关注程序完成初始化和主要 JIT 编译后的长期执行能力。两者测量的对象不同，不能混在同一个数字中。
-
-同一个 JVM 内的 Iteration 共享 JIT Profile、已编译代码、堆状态和 GC 历史，因此不能把它们全部当成彼此独立的 JVM 实验。独立 JVM invocation，也就是 JMH 中的 Fork，是 Java 性能评估中不能忽略的实验层级。可信结果还需要同时报告估计值和不确定性，而不是只展示一个最好值或平均值。
-
-### 实验预算：重复应该放在哪一层
-
-增加运行次数并不一定能够等比例提高结论的可信度。性能实验通常包含多个嵌套层级：
-
-```text
-Build
-  └─ JVM Execution / Fork
-       └─ Measurement Iteration
-            └─ Pipeline Invocation
-```
-
-每个层级都可能引入不同的变化。重新 Build 可能改变代码布局，重新启动 JVM 会重新经历 JIT 和堆状态变化，同一个 JVM 内的 Iteration 则主要受到局部运行时扰动。
-
-如果主要方差来自不同 Fork，那么把每个 Fork 中的 Iteration 从 5 次增加到 50 次，也无法消除 Fork 之间的差异；增加独立 Fork 可能更有价值。如果 Build 本身也会显著影响结果，就还需要把重复提升到 Build 层级。
-
-论文提出先做定标实验：保留各层原始样本，估计 Build、Fork 和 Iteration 的方差贡献与时间成本，再把有限预算分配给主要的不确定性来源。因此，固定的 Fork 和 Iteration 次数只能作为起点，不能被当成适用于所有 Benchmark 的永久配置。
-
-这里还需要区分随机误差和系统偏差。增加重复可以帮助估计随机误差，却不能修复测试顺序、机器状态或环境差异造成的系统偏差。如果 baseline 总是在机器空闲时运行，而 candidate 总是在机器繁忙时运行，再多样本也只会更精确地描述一个有偏实验。
-
-### 流处理测量：从“测得稳定”到“测量正确”
-
-前两项研究关注怎样可靠地估计一个指标，第三项研究则进一步追问：这个指标是否真正代表了流处理系统的性能。
-
-传统闭环负载生成器通常在上一批数据处理完成后再发送下一批。当系统变慢时，生成器也会跟着降低发送速度，尚未进入系统的数据等待时间不会被记录。最终可能出现一种反直觉现象：系统已经严重过载，报告中的内部处理延迟却仍然很低。这就是 Coordinated Omission。
-
-为避免这个问题，输入速率必须独立于系统的完成速度，延迟也应从事件原本计划产生的时间开始计算。否则，Source 之前的排队会被排除，测量结果只能反映引擎摄入数据之后的处理时间，无法表达事件从应该产生到最终完成的真实等待。
-
-这也引出了可持续吞吐与瞬时峰值的区别。可持续吞吐不是系统短时间内达到的最大速度，而是系统能够长期处理，同时不持续积累 backlog 和 Event-time Latency 的最高输入速率。吞吐、数据完整性、尾延迟和延迟增长必须一起解释，任何一个单独使用都不足以证明系统能够稳定承载当前负载。
-
-### 三项研究形成的方法论
-
-三项研究共同形成了一条完整的论证链：先定义要评估的是启动、稳态、热点方法还是完整系统；再识别真正的独立实验单位和主要方差来源；最后确认吞吐与延迟的起止边界是否代表用户真正关心的问题。
-
-统计方法无法修复错误的测量边界，正确的测量边界也不能代替独立重复和方差分析。只有两者同时成立，Benchmark 才能从一组运行数字变成可以支持工程判断的性能证据。
-## 四、这些理论如何落到 Zeta Pipeline
-
-前一节确定了三项基本原则：保留独立 JVM 样本、把重复预算放在正确层级，并使用开环负载测量真实排队时间。本节不再重复这些概念，只说明它们怎样落实到 Zeta Pipeline 基准中。
-
-### BenchmarkSource 记录计划生成时间
-
-Source 根据绝对时间安排每条记录的计划生成时间：
-
-```text
-scheduledTime = startTime
-              + wholeSeconds × 1000
-              + remainder × 1000 / rate
-```
-
-计划时间不会因为上一条记录处理变慢而暂停。记录到达 Sink 后计算：
-
-```text
-event-time latency = Sink 接收时间 - 计划生成时间
-```
-
-因此，引擎暂时无法及时处理所产生的排队，会直接进入 P50、P95 和 P99，而不会被 Source 自身降速隐藏。
-
-### 确定性组件隔离引擎开销
-
-测试组件尽量不引入随机业务行为：
-
-- Source 生成固定数量、固定 Payload 的内存数据；
-- Transform 执行固定次数的 hash 工作，并输出可校验 checksum；
-- Sink 不访问外部系统，只统计行数、吞吐、延迟分布和 checksum；
-- 每条 Pipeline 都保持相同的数据量、并行度和资源配置，只切换目标能力。
-
-五个场景分别覆盖基础数据链路、Transform、实时忙碌度观测、StainTrace 以及两者组合。这样可以在工作负载保持一致的前提下，观察不同引擎能力带来的增量开销。
-
-### 正确性校验决定样本是否有效
-
-性能很快但少处理了数据，是无效结果。每次完整作业都会检查：
-
-- `processed_rows` 是否等于 `expected_rows`；
-- 基础 Source → Sink 场景的 checksum 是否为 0；
-- 含 Transform 的场景 checksum 是否非 0；
-- 延迟百分位是否落入统计范围，而不是被 overflow bucket 截断；
-- P99 和延迟增长是否满足当前基准的保护条件。
-
-只有数据完整、Transform 确实执行并且延迟可解释，样本才会进入最终报告。
-
-### Fork、预热与机器可读结果
-
-公共 JMH 配置使用 3 个 Fork、每个 Fork 3 次预热和 5 次测量。Fork 提供相互独立的 JVM 进程，Warmup 结果不参与最终聚合，Measurement 才用于形成报告。
-
-每个 Measurement Iteration 内可以完成多次完整 Pipeline invocation，所以报告中的 75/75 不是 75 行数据，也不等于 15 个 JMH Iteration，而是 Measurement 阶段实际完成的 75 个 Pipeline 作业样本。
-
-除了 Markdown 汇总，测试还保留原始 JMH JSON、每次 Pipeline JSON、标准化指标和环境元数据。Commit、JDK、JVM 参数、运行器镜像、CPU、内核、内存和负载参数共同决定两组结果是否具有可比性。
-
-`3 Fork × 5 Measurement` 是当前阶段的初始预算，而不是永久配置。托管运行器上的结果首先用于观察；后续还需要在固定机器上积累历史分布，再根据真实方差决定重复次数、重跑规则和性能回归阈值。
-## 五、怎样读懂两套数字
-
-### JMH Score 和 Pipeline Throughput 为什么不同
-
-Pipeline 类声明每次 invocation 包含 1,000,000 个逻辑操作，因此 JMH 会把完整作业耗时换算为 `ops/s`：
-
-```text
-JMH Score ≈ 1,000,000 / 完整作业耗时
-```
-
-这里的完整作业耗时包括配置生成、提交、调度、Source、Transform、Sink 和结束等待。
-
-Pipeline JSON 的吞吐边界更窄：
-
-```text
-Pipeline Throughput
-    = processed_rows / (Sink 最后一条接收时间 - 第一条接收时间)
-```
-
-它只观察 Sink 实际接收数据的区间，不包含作业提交和收尾固定成本。因此图中 JMH Score 约为 45.4 万到 45.8 万 ops/s，而 Pipeline Throughput 约为 58.8 万到 59.1 万行/秒。这不是两套结果矛盾，而是测量边界不同。
-
-### Score、Error、CV 和 Unit
-
-| 字段 | 含义 | 使用方式 |
-| --- | --- | --- |
-| `Score` | JMH 对当前方法吞吐的估计值 | 吞吐模式下越大越好 |
-| `Error` | 当前运行内部置信区间半宽占 Score 的比例 | 区间可近似理解为 `Score × (1 ± Error%)` |
-| `CV` | 样本标准差除以样本均值 | 越低表示本轮样本越集中 |
-| `Unit` | 指标单位 | Pipeline 为 `ops/s`，Row 微基准为 `ops/ms` |
-
-`Error` 和 CV 只能描述本次运行内部的波动，不包含不同宿主机、不同 CPU 调度状态和不同系统负载之间的漂移。比较两个版本时，不能只因为 Score 相差 1% 就认定发生了回归。
-
-### P50、P95、P99、Max、Growth 和 Valid
-
-- P50：一半记录的延迟不超过该值，代表典型体验；
-- P95 / P99：观察尾部记录，能更早暴露排队、暂停和抖动；
-- Max：最慢记录，但对单个异常值更敏感，应和百分位一起看；
-- Growth：比较前后半段 P99，判断 backlog 是否持续累积；
-- Valid：Measurement 阶段完整、可持续且没有百分位溢出的样本数量。
-
-其中 Growth 的计算方式是：
-
-```text
-Growth = (后半段 P99 + 1) / (前半段 P99 + 1)
-```
-
-吞吐告诉我们单位时间完成多少工作，延迟告诉我们每条记录等了多久，Growth 告诉我们这种等待是否还在恶化。三者必须结合，任何一个单独使用都可能产生错误结论。
-
-## 六、从基准结果看 Zeta 的性能表现
-
-在 4 个 JVM 可见处理器和 4 GiB 堆的资源条件下，Zeta 启动真实的单节点 Master 和 Worker，经过作业提交、调度以及完整的 `Source -> Transform -> Sink` 链路后，Sink 吞吐仍然保持在每秒 58.8 万到 59.1 万行，P99 约为 100 ms，75/75 个测量样本全部有效。
-
-五条 Pipeline 的 Growth 都接近 1，说明在每秒 60 万行的计划输入下，系统没有持续积累延迟。加入 Transform、实时可观测性和 StainTrace 后，性能差异也没有超出本轮测量误差。它不能证明这些能力“零开销”，但至少说明当前开销没有对核心链路造成可识别的性能下降。
-
-这组结果不是 Zeta 的容量上限，也不包含真实 Connector、多节点网络和 Checkpoint 等成本。不过在当前测量范围内，Zeta 已经表现出较高的吞吐能力、稳定的尾延迟和良好的功能开销控制。对于数据库、消息队列、数据仓库和数据湖之间的批流一体数据同步，SeaTunnel Zeta 是一款值得优先考虑的高性能引擎。
-
-## 七、思考与总结
-
-设计基准测试的第一步不是立即编写 JMH 方法，而是先理解基准测试究竟要证明什么，并通过成熟研究掌握启动与稳态、独立样本、分层方差、开环负载和可持续吞吐等基本概念。理论的作用不是让测试看起来更复杂，而是帮助我们避免从错误的测量方式中得到精确但无意义的数字。
-
-明确问题之后，需要固定计时边界、工作负载和资源条件，并使用确定性数据验证处理结果是否完整。只有先证明数据没有丢失、目标逻辑确实执行，吞吐和延迟才有讨论价值。
-
-最后，应当分离预热与正式测量，保留独立重复，同时观察吞吐、尾延迟、Growth 和不确定性。托管运行器上的单次结果适合发现信号，不适合立即成为性能门禁；只有积累固定环境下的历史分布，才能进一步定义可靠的回归阈值。
-
-基准测试的价值不在于展示一次漂亮的数字，而在于建立一套可以重复运行、解释性能变化并长期发现回归的证据体系。
+本实验对独立 JVM 样本的处理参考了 *Statistically Rigorous Java Performance Evaluation*（OOPSLA 2007）。*Rigorous Benchmarking in Reasonable Time*（ISMM 2013）讨论如何按 Build、Fork 和 Iteration 的方差分配重复次数。按计划生成时间跟踪尾延迟和积压的做法来自 *Benchmarking Distributed Stream Data Processing Systems*（ICDE 2018）。[三篇论文与 JMH 实践]({{< relref "/posts/rigorous-java-stream-benchmarking" >}})
