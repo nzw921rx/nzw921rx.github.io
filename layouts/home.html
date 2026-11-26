@@ -3,45 +3,28 @@
 {{- $posts = (where $posts "Params.hiddenInHomeList" "ne" true).ByDate.Reverse -}}
 {{/* Keep the original /page/1/ alias while listing each topic on one page. */}}
 {{- $pager := .Paginate $posts (add 1 (len $posts)) -}}
-{{- $topics := slice -}}
-{{- $groups := newScratch -}}
-{{- range $pager.Pages -}}
-    {{- $topic := "随笔" -}}
-    {{- range first 1 (.GetTerms "categories") -}}{{- $topic = .LinkTitle -}}{{- end -}}
-    {{- if not ($groups.Get $topic) -}}{{- $topics = $topics | append $topic -}}{{- end -}}
-    {{- $groups.Add $topic (slice .) -}}
-{{- end -}}
+{{- $topics := partialCached "article-topics.html" site.Home -}}
 
 <div class="home-layout page-shell">
     <div class="home-main">
         {{ partial "home_info.html" . }}
-        {{ with $topics }}
-        <nav id="topics" class="topic-index" aria-label="跳转到文章专题">
-            <strong>专题</strong>
-            {{ range . }}<a href="#topic-{{ . | anchorize }}">{{ . }}</a>{{ end }}
-        </nav>
-        {{ end }}
-        <section id="articles" class="article-section" aria-label="按专题整理的文章">
-            {{ range $topics }}
-            <section class="post-group" id="topic-{{ . | anchorize }}">
-                <h2>{{ . }}</h2>
-                <ul class="topic-posts">
-                    {{ range $groups.Get . }}
-                    <li>
-                        <a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>
-                        <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006-01-02" }}</time>
-                    </li>
-                    {{ end }}
-                </ul>
-            </section>
-            {{ end }}
+        <section id="articles" class="article-section" aria-label="技术文章">
+            <div id="topics">
+                {{ range $topics }}
+                <section class="post-group" id="{{ .id }}">
+                    <h2>{{ .name }}</h2>
+                    <ul class="topic-posts">
+                        {{ range .posts }}
+                        <li>
+                            <a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>
+                            <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006-01-02" }}</time>
+                        </li>
+                        {{ end }}
+                    </ul>
+                </section>
+                {{ end }}
+            </div>
         </section>
-        <nav class="archive-links" aria-label="更多浏览方式">
-            {{ with site.GetPage "/posts" }}<a href="{{ .RelPermalink }}">文章归档</a>{{ end }}
-            {{ with site.GetPage "/categories" }}<a href="{{ .RelPermalink }}">所有分类</a>{{ end }}
-            {{ with site.GetPage "/tags" }}<a href="{{ .RelPermalink }}">所有标签</a>{{ end }}
-            {{ with .OutputFormats.Get "RSS" }}<a href="{{ .RelPermalink }}">RSS 订阅</a>{{ end }}
-        </nav>
     </div>
 
     <aside class="reference-index" aria-label="资料与推荐阅读">

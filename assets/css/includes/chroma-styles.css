@@ -1,0 +1,21 @@
+/* Hugo's Chroma markup uses one-letter token classes. Unstyled tokens inherit the text color. */
+.chroma {
+  --keyword: #514289;
+  --string: #265c42;
+  --number: #824415;
+  --comment: #50596a;
+}
+[data-theme="dark"] .chroma {
+  --keyword: #c2b5ed;
+  --string: #a9daba;
+  --number: #e6b88c;
+  --comment: #a3afbf;
+}
+.chroma .line { display: flex; }
+.chroma :is(.k, .kc, .kd, .kn, .kp, .kr, .kt, .nt, .ow) { color: var(--keyword); }
+.chroma :is(.s, .sa, .sb, .sc, .sd, .s1, .s2, .se, .sh, .si, .sr, .ss, .sx, .dl) { color: var(--string); }
+.chroma :is(.m, .mb, .mf, .mh, .mi, .mo, .il, .ld) { color: var(--number); }
+.chroma :is(.c, .c1, .ch, .cm, .cp, .cpf, .cs, .ln, .lnt) { color: var(--comment); }
+.chroma .gd { color: var(--number); }
+.chroma .gi { color: var(--string); }
+.chroma .hl { background: var(--tertiary); }

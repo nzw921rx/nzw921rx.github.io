@@ -1,20 +1,25 @@
-<header class="notes-header">
-  <div class="notes-bar">
-    <a class="notes-brand" href="{{ site.Home.RelPermalink }}">
-      <span class="brand-mark" aria-hidden="true">NZ</span>
-      <span><strong>牛志伟</strong><small>Engineering Notes</small></span>
-    </a>
-    <nav aria-label="主导航">
-      {{- range site.Menus.main }}
-      <a href="{{ with .Page }}{{ .RelPermalink }}{{ else }}{{ site.Home.RelPermalink }}{{ .URL }}{{ end }}"{{ if $.IsMenuCurrent "main" . }} aria-current="page"{{ end }}>{{ .Name }}</a>
-      {{- end }}
-    </nav>
-    {{- if not site.Params.disableThemeToggle }}
-    <button type="button" id="theme-toggle" class="notes-toggle" title="切换深浅色（Alt + T）" accesskey="t">
-      <span class="theme-disc" aria-hidden="true"></span>
-      <span class="theme-action dark-action">切换到深色模式</span>
-      <span class="theme-action light-action">切换到浅色模式</span>
-    </button>
-    {{- end }}
-  </div>
-</header>
+<aside class="site-rail" aria-label="站点索引">
+  <nav aria-label="站内导航">
+    <p class="rail-title">站内导航</p>
+    <ul>
+      <li><a href="{{ site.Home.RelPermalink }}"{{ if .IsHome }} aria-current="page"{{ end }}>首页</a></li>
+      {{ with site.GetPage "/posts" }}<li><a href="{{ .RelPermalink }}">文章归档</a></li>{{ end }}
+      {{ range partialCached "article-topics.html" site.Home }}
+      <li><a href="{{ site.Home.RelPermalink }}#{{ .id }}">{{ .name }}</a></li>
+      {{ end }}
+    </ul>
+    <ul>
+      {{ with site.GetPage "/categories" }}<li><a href="{{ .RelPermalink }}">所有分类</a></li>{{ end }}
+      {{ with site.GetPage "/tags" }}<li><a href="{{ .RelPermalink }}">所有标签</a></li>{{ end }}
+      {{ with site.GetPage "/about" }}<li><a href="{{ .RelPermalink }}">关于我</a></li>{{ end }}
+      {{ with site.Home.OutputFormats.Get "RSS" }}<li><a href="{{ .RelPermalink }}">RSS 订阅</a></li>{{ end }}
+    </ul>
+  </nav>
+  {{ if not site.Params.disableThemeToggle }}
+  <button type="button" id="theme-toggle" class="notes-toggle" title="切换深浅色（Alt + T）" accesskey="t">
+    <span class="theme-disc" aria-hidden="true"></span>
+    <span class="dark-action">切换到深色模式</span>
+    <span class="light-action">切换到浅色模式</span>
+  </button>
+  {{ end }}
+</aside>
