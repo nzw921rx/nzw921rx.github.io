@@ -1,0 +1,41 @@
+<aside class="reference-index" aria-label="书籍与近期文章">
+    <section class="side-block">
+        <h2>推荐书籍</h2>
+        <ul class="reading-books">
+            <li>
+                <a href="https://www.brendangregg.com/systems-performance-2nd-edition-book.html">
+                    <img src="{{ "images/systems-performance-cover.jpg" | relURL }}" width="360" height="470" alt="">
+                    <span lang="en">Systems Performance, 2nd Ed.</span>
+                </a>
+            </li>
+            <li>
+                <a href="https://www.brendangregg.com/bpf-performance-tools-book.html">
+                    <img src="{{ "images/bpf-performance-tools-cover.jpg" | relURL }}" width="360" height="468" alt="">
+                    <span lang="en">BPF Performance Tools</span>
+                </a>
+            </li>
+        </ul>
+    </section>
+    {{ $posts := where site.RegularPages "Section" "in" site.MainSections }}
+    {{ $posts = (where $posts "Params.hiddenInHomeList" "ne" true).ByDate.Reverse }}
+    {{ with first 6 $posts }}
+    <section class="side-block">
+        <h2>最近文章</h2>
+        <ul class="recent-post-list">
+            {{ range . }}
+            <li>
+                <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006-01-02" }}</time>
+                <a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a>
+            </li>
+            {{ end }}
+        </ul>
+    </section>
+    {{ end }}
+    <section class="side-block">
+        <h2>参考资料</h2>
+        <ul class="reference-list">
+            <li><a href="https://seatunnel.apache.org/docs/3.1.0/introduction/about/">Apache SeaTunnel 文档</a></li>
+            <li><a href="https://github.com/openjdk/jmh">OpenJDK JMH</a></li>
+        </ul>
+    </section>
+</aside>

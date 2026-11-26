@@ -4,10 +4,18 @@
     <ul>
       <li><a href="{{ site.Home.RelPermalink }}"{{ if .IsHome }} aria-current="page"{{ end }}>首页</a></li>
       {{ with site.GetPage "/posts" }}<li><a href="{{ .RelPermalink }}">文章归档</a></li>{{ end }}
-      {{ range partialCached "article-topics.html" site.Home }}
-      <li><a href="{{ site.Home.RelPermalink }}#{{ .id }}">{{ .name }}</a></li>
+    </ul>
+    {{ with site.Menus.reading }}
+    <p class="rail-title rail-section">深度文章</p>
+    <ul>
+      {{ range . }}
+      {{ $label := .Name }}
+      {{ with .Page }}
+      <li><a href="{{ .RelPermalink }}" title="{{ .Title }}"{{ if eq .RelPermalink $.RelPermalink }} aria-current="page"{{ end }}>{{ $label }}</a></li>
+      {{ end }}
       {{ end }}
     </ul>
+    {{ end }}
     <ul>
       {{ with site.GetPage "/categories" }}<li><a href="{{ .RelPermalink }}">所有分类</a></li>{{ end }}
       {{ with site.GetPage "/tags" }}<li><a href="{{ .RelPermalink }}">所有标签</a></li>{{ end }}

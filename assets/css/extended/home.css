@@ -1,5 +1,8 @@
-.home-layout {
+.home-layout, .reference-index {
   --heading-font: Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.home-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 200px;
   align-items: start;
@@ -40,12 +43,12 @@
   object-fit: cover;
 }
 
-.home-layout a {
+:is(.home-layout, .reference-index) a {
   color: var(--accent);
   text-decoration: underline;
   text-underline-offset: .12em;
 }
-.home-layout a:is(:hover, :focus-visible) { color: var(--accent-strong); }
+:is(.home-layout, .reference-index) a:is(:hover, :focus-visible) { color: var(--accent-strong); }
 
 .article-section { margin-top: 17px; }
 .post-group + .post-group { margin-top: 20px; }
@@ -70,6 +73,7 @@
   padding: 12px 14px 16px;
   color: var(--content);
   background: var(--rail-bg);
+  font: .9375rem/1.45 var(--serif);
 }
 .reference-index .side-block + .side-block {
   margin-top: 16px;
@@ -77,10 +81,20 @@
   border-top: 1px solid var(--border);
 }
 .reference-index h2 { margin: 0 0 8px; font: 400 1.0625rem/1.4 var(--heading-font); }
-.reference-list { margin: 0; padding-left: 1.1rem; list-style: disc outside; }
-.reference-list li + li { margin-top: 10px; }
-.reference-list a { font-size: .9375rem; overflow-wrap: anywhere; }
-.reference-list p { margin: 2px 0 0; color: var(--content); font-size: .8125rem; }
+.reading-books { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.reading-books a { display: block; width: 100%; max-width: 168px; }
+.reading-books img { display: block; width: 100%; height: auto; margin-bottom: 3px; }
+.reading-books span { display: block; text-align: center; font: italic .8125rem/1.45 Arial, sans-serif; }
+.recent-post-list, .reference-list { margin: 0; padding-inline-start: 1rem; list-style: disc outside; }
+.recent-post-list li + li, .reference-list li + li { margin-top: 5px; }
+.recent-post-list { font-size: .8125rem; }
+.recent-post-list time {
+  display: block;
+  white-space: nowrap;
+  color: var(--secondary);
+  font: .75rem/1.5 var(--mono);
+}
+.recent-post-list a, .reference-list a { overflow-wrap: anywhere; }
 
 @media (max-width: 900px) {
   .home-layout { grid-template-columns: minmax(0, 1fr) 170px; }
@@ -91,6 +105,7 @@
   .home-main { min-height: auto; }
   .hero-copy p, .hero-copy > a { margin-inline-start: 0; }
   .reference-index { padding: 14px 16px; }
+  .reading-books { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 480px) {

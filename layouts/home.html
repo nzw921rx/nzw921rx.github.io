@@ -27,21 +27,6 @@
         </section>
     </div>
 
-    <aside class="reference-index" aria-label="资料与推荐阅读">
-        <section class="side-block">
-            <h2>参考资料</h2>
-            <ul class="reference-list">
-                <li><a href="https://seatunnel.apache.org/docs/3.1.0/introduction/about/">Apache SeaTunnel 文档</a><p>引擎、连接器与作业配置手册。</p></li>
-                <li><a href="https://github.com/openjdk/jmh">OpenJDK JMH</a><p>JVM 微基准测试工具与示例。</p></li>
-            </ul>
-        </section>
-        <section class="side-block">
-            <h2>推荐阅读</h2>
-            <ul class="reference-list">
-                <li><a href="https://www.brendangregg.com/systems-performance-2nd-edition-book.html">Systems Performance</a><p>Brendan Gregg 的系统性能分析方法。</p></li>
-                <li><a href="https://nightlies.apache.org/flink/flink-docs-stable/docs/concepts/stateful-stream-processing/">Flink 有状态流处理</a><p>从状态和 Checkpoint 理解故障恢复。</p></li>
-            </ul>
-        </section>
-    </aside>
+    {{ partialCached "reading-sidebar.html" site.Home }}
 </div>
 {{ end }}
