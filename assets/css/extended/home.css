@@ -59,7 +59,6 @@
 
 .reference-index {
   min-width: 0;
-  padding: 12px 14px 16px;
   color: var(--content);
   background: var(--theme);
   font: .9375rem/1.45 var(--serif);
@@ -81,9 +80,12 @@
 }
 .recent-post-list a, .reference-list a { overflow-wrap: anywhere; }
 
+@media (max-width: 760px) {
+  .reference-index { padding: 14px 16px; }
+}
+
 @media (max-width: 740px) {
   .hero-copy p, .hero-copy > a { margin-inline-start: 0; }
-  .reference-index { padding: 14px 16px; }
 }
 
 @media (max-width: 480px) {
