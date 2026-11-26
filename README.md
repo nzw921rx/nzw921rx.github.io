@@ -1,4 +1,4 @@
-# 牛志伟的技术笔记
+# 牛志伟的博客
 
 使用 Hugo 和 PaperMod 构建，发布在 [nzw921rx.github.io](https://nzw921rx.github.io/)。
 
