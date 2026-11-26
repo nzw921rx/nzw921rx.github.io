@@ -1,22 +1,11 @@
-{{- with site.Params.homeInfoParams }}
-<article class="first-entry home-info home-card">
-    <div class="home-card__eyebrow">{{ .Eyebrow | default "Personal Tech Blog" }}</div>
-    <header class="entry-header home-card__header">
-        <h1>{{ .Title | markdownify }}</h1>
-    </header>
-    <div class="entry-content md-content home-card__content">
-        {{ $opts := dict "display" "block" }}
-        {{ .Content | $.Page.RenderString $opts }}
+<section class="home-hero" id="intro" aria-labelledby="intro-title">
+    <div class="hero-copy">
+        <h1 id="intro-title">牛志伟的技术笔记</h1>
+        <p>你好，我是牛志伟，Apache SeaTunnel Committer。我在这里分享源码阅读、论文笔记，以及分布式系统和性能工程方面的实验。</p>
+        <div class="hero-links">
+            <a href="https://github.com/nzw921rx">GitHub</a>
+            {{ with site.GetPage "/about" }}<a href="{{ .RelPermalink }}">关于我</a>{{ end }}
+        </div>
     </div>
-    {{- with .Tags }}
-    <ul class="home-card__tags" aria-label="关注方向">
-        {{- range . }}
-        <li>{{ . }}</li>
-        {{- end }}
-    </ul>
-    {{- end }}
-    <footer class="entry-footer home-card__footer">
-        {{ partial "social_icons.html" (dict "align" site.Params.homeInfoParams.AlignSocialIconsTo) }}
-    </footer>
-</article>
-{{- end -}}
+    <img class="author-avatar" src="{{ "images/github-avatar.jpg" | relURL }}" alt="牛志伟的 GitHub 头像" width="112" height="112">
+</section>

@@ -1,0 +1,20 @@
+<header class="notes-header">
+  <div class="notes-bar">
+    <a class="notes-brand" href="{{ site.Home.RelPermalink }}">
+      <span class="brand-mark" aria-hidden="true">NZ</span>
+      <span><strong>牛志伟</strong><small>Engineering Notes</small></span>
+    </a>
+    <nav aria-label="主导航">
+      {{- range site.Menus.main }}
+      <a href="{{ with .Page }}{{ .RelPermalink }}{{ else }}{{ site.Home.RelPermalink }}{{ .URL }}{{ end }}"{{ if $.IsMenuCurrent "main" . }} aria-current="page"{{ end }}>{{ .Name }}</a>
+      {{- end }}
+    </nav>
+    {{- if not site.Params.disableThemeToggle }}
+    <button type="button" id="theme-toggle" class="notes-toggle" title="切换深浅色（Alt + T）" accesskey="t">
+      <span class="theme-disc" aria-hidden="true"></span>
+      <span class="theme-action dark-action">切换到深色模式</span>
+      <span class="theme-action light-action">切换到浅色模式</span>
+    </button>
+    {{- end }}
+  </div>
+</header>
